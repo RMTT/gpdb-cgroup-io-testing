@@ -1,0 +1,31 @@
+- name: make sure data collection programs have be killed
+  hosts: all
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: kill blktrace
+      become: true
+      command: "pkill blktrace"
+      ignore_errors: true
+
+    - name: kill iotop
+      become: true
+      command: "pkill iotop"
+      ignore_errors: true
+
+    - name: kill iostat
+      become: true
+      command: "pkill iostat"
+      ignore_errors: true
+
+    - name: kill generate.py
+      become: true
+      shell: "ps -ef | grep 'generate.py' | awk -F ' ' '{print $2}' | xargs kill -9"
+      ignore_errors: true
+
+    - name: kill monitor-process.py
+      become: true
+      shell: "ps -ef | grep 'monitor-process.py' | awk -F ' ' '{print $2}' | xargs kill -9"
+      ignore_errors: true

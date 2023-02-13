@@ -1,0 +1,76 @@
+- name: run data collect programs
+  hosts: all
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: run blktrace
+      become: true
+      async: "{{ running_time }}"
+      poll: 0
+      shell: |
+          blktrace -d /dev/sdb
+      args:
+        chdir: "{{ data_dir }}/blktrace"
+        executable: /bin/bash
+      register: blktrace
+
+    - name: run iotop
+      become: true
+      async: "{{ running_time }}"
+      poll: 0
+      shell: |
+          iotop -u {{ user }} -o -b > output
+      args:
+        chdir: "{{ data_dir }}/iotop"
+        executable: /bin/bash
+      register: iotop
+
+    - name: run iostat
+      become: true
+      async: "{{ running_time }}"
+      poll: 0
+      shell: |
+          iostat -t 1 /dev/sdb > output
+      args:
+        chdir: "{{ data_dir }}/iostat"
+        executable: /bin/bash
+      register: iostat
+
+    - name: monitor QE and QD of gpdb
+      become: true
+      async: "{{ running_time }}"
+      poll: 0
+      shell: |
+        python3 monitor-process.py {{ user }} {{ test_db_name }} /sys/fs/cgroup/{{ cgroup_name }}
+      args:
+        chdir: "{{ source_dir }}"
+        executable: /bin/bash
+      when: "'cluster_cg' in group_names"
+
+    - name: start generate data
+      async: "{{ running_time }}"
+      poll: 0
+      shell: |
+        python3 generate.py {{ user }} {{ test_db_name }}
+      args:
+        chdir: "{{ source_dir }}"
+        executable: /bin/bash
+      when: "'cluster_master' in group_names"
+
+    - name: Wait on tasks
+      become: true
+      async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop:
+        - "{{ blktrace }}"
+        - "{{ iotop }}"
+        - "{{ iostat }}"
+      loop_control:
+        loop_var: item
+      register: job_result
+      until: job_result.finished
+      ignore_errors: true
+      retries: 100
+      delay: 3600

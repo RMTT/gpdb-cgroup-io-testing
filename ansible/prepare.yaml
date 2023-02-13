@@ -1,0 +1,140 @@
+- name: install required packages
+  hosts: all
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: install sysstat
+      become: true
+      package:
+        name: sysstat
+        state: latest
+
+    - name: install iotop
+      become: true
+      package:
+        name: iotop
+        state: latest
+
+    - name: install python3-pip
+      become: true
+      package:
+        name: python3-pip
+        state: latest
+
+    - name: install libpq-dev
+      become: true
+      package:
+        name: libpq-dev
+        state: latest
+
+    - name: install blktrace
+      become: true
+      package:
+        name: blktrace
+        state: latest
+
+- name: copy some source files and install requirements
+  hosts: all
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: copy source files
+      copy:
+        src: ../src/
+        dest: "{{ source_dir }}/"
+        owner: "{{ user }}"
+
+    - name: install requirements
+      become: true
+      shell: |
+        pip3 install -r {{ source_dir }}/requirements.txt
+
+
+
+- name: create directories to save runtime data
+  hosts: all
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: create blktrace directory
+      file:
+        path: "{{ data_dir }}/blktrace"
+        state: directory
+
+    - name: create iotop directory
+      file:
+        path: "{{ data_dir }}/iotop"
+        state: directory
+
+    - name: create iostat directory
+      file:
+        path: "{{ data_dir }}/iostat"
+        state: directory
+
+- name: prepare test cgroup
+  hosts: cluster_cg
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: create cgroup
+      become: true
+      file:
+        path: "/sys/fs/cgroup/{{ cgroup_name }}"
+        state: directory
+
+    - name: write limitation to test cgroup
+      become: true
+      shell: |
+        echo "{{device_num}} wbps={{ cgroup_wbps }} rbps={{ cgroup_rbps }}" >> /sys/fs/cgroup/{{ cgroup_name }}/io.max
+
+- name: start gpdb
+  hosts: cluster_master
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: start gpdb
+      register: output
+      shell: |
+        source /usr/local/greenplum-db/greenplum_path.sh
+        export MASTER_DATA_DIRECTORY={{ master_data_dir }}
+        if gpstate; then
+          echo "gpdb started"
+        else
+          gpstart -a
+        fi
+      args:
+        executable: /bin/bash
+    - debug:
+        var: output
+
+- name: prepare testdb
+  hosts: cluster_master
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: create testdb
+      shell: |
+        source /usr/local/greenplum-db/greenplum_path.sh
+        export MASTER_DATA_DIRECTORY={{ master_data_dir }}
+        if createdb {{ test_db_name }}; then
+          echo "create {{ test_db_name }}"
+        else
+          echo "cannot creat {{ test_db_name }}, maybe it already exist"
+        fi
+      register: output
+      args:
+        executable: /bin/bash
+    - debug:
+        var: output

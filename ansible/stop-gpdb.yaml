@@ -1,0 +1,21 @@
+- name: Stop gpdb
+  hosts: all
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: stop gpdb
+      register: output
+      shell: |
+        source /usr/local/greenplum-db/greenplum_path.sh
+        export MASTER_DATA_DIRECTORY={{ master_data_dir }}
+        if gpstop -a; then
+          echo "gpdb stoped"
+        else
+          echo "cannot stop gpdb, may it has stoped"
+        fi
+      args:
+        executable: /bin/bash
+    - debug:
+        var: output

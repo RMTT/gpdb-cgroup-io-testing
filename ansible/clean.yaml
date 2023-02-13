@@ -1,0 +1,62 @@
+- name: clean test data directory
+  hosts: all
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: delete blktrace directory
+      file:
+        path: "~/test-data/blktrace"
+        state: absent
+
+    - name: delete iotop directory
+      file:
+        path: "~/test-data/iotop"
+        state: absent
+
+    - name: delete iostat directory
+      file:
+        path: "~/test-data/iostat"
+        state: absent
+
+    - name: create blktrace directory
+      file:
+        path: "~/test-data/blktrace"
+        state: directory
+
+    - name: create iotop directory
+      file:
+        path: "~/test-data/iotop"
+        state: directory
+
+    - name: create iostat directory
+      file:
+        path: "~/test-data/iostat"
+        state: directory
+
+- name: clean testdb
+  hosts: cluster_master
+  vars_files:
+    - ../config.yaml
+  remote_user: "{{ user }}"
+
+  tasks:
+    - name: clean testdb
+      shell: |
+        source /usr/local/greenplum-db/greenplum_path.sh
+        export MASTER_DATA_DIRECTORY={{ master_data_dir }}
+        if dropdb testdb; then
+          echo "drop testdb!"
+        else
+          echo "testdb doesn't exist"
+        fi
+
+        createdb testdb
+      args:
+        executable: /bin/bash
+
+    - name: clean pg_log
+      shell: |
+        rm -rf {{ master_data_dir }}/pg_log/*
+

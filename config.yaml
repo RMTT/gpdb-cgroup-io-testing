@@ -1,0 +1,27 @@
+# main user for hosts and gpdb
+user: gpadmin
+
+# dir to save collected data
+data_dir: "/home/gpadmin/test-data"
+
+# source files distributed dir
+source_dir: "/home/gpadmin/fake"
+
+master_data_dir: "/data/gpdata/master/gpseg-1"
+
+# database used to insert random data
+test_db_name: testdb
+
+# name of cgroup which contains QE/QD
+cgroup_name: "test"
+
+# device number of gpdb data dir
+device_num: "8:16"
+
+# wbps of test cgourp
+cgroup_wbps: 5242880
+
+# rbps of test cgroup
+cgroup_rbps: "max"
+
+running_time: 7200 # seconds
